@@ -21,7 +21,7 @@ OK   b. pour la diffusion des valeurs du tableau.
 OK   c. pour le rassemblement des résulats.
 OK   d. pour le rassemblement de l'erreur.
   2. Recouvrir les communications entre voisins par du calcul.
-     a. envoyer de manière asynchone les limites du domaine local (c'est les fontiere (les valeures que les voisins on tbesoin pou calculer).
+OK   a. envoyer de manière asynchone les limites du domaine local (c'est les fontiere (les valeures que les voisins on tbesoin pou calculer).
      b. réaliser le calcul sur le centre du domaine local.
      c. recevoir les limites des domaines des voisins.
      d. terminer les calculs locaux. 
@@ -257,7 +257,11 @@ main (int argc, char *argv[])
   int iter=0;			/* nombre d'iterations avant convergenece */
   int p;
   char *filein, *fileout;	/* les fichiers d'entree et de sortie */
-  
+
+  /* ajout nico */
+  MPI_Request requestSend[2];
+  MPI_Request requestReceive[2];
+  int index;
   /* initialisations MPI */
   com = MPI_COMM_WORLD;
   MPI_Init (&argc, &argv);
@@ -321,14 +325,16 @@ main (int argc, char *argv[])
     iter++;
     
     /* échange de valeurs avec les voisins */
-    MPI_Send (a_local.val+1, 1, MPI_FLOAT,
-	      lnbr, TAG_LNEIGHBOR, com);
-    MPI_Recv (a_local.val+lsize+1, 1, MPI_FLOAT,
-	      rnbr, TAG_LNEIGHBOR, com, &status);
-    MPI_Send (a_local.val+lsize, 1, MPI_FLOAT,
-	      rnbr, TAG_RNEIGHBOR, com);
-    MPI_Recv (a_local.val, 1, MPI_FLOAT,
-	      lnbr, TAG_RNEIGHBOR, com, &status);
+    /* MPI_Send (a_local.val+1, 1, MPI_FLOAT, lnbr, TAG_LNEIGHBOR, com); */
+    /* MPI_Recv (a_local.val+lsize+1, 1, MPI_FLOAT, rnbr, TAG_LNEIGHBOR, com, &status); */
+    /* MPI_Send (a_local.val+lsize, 1, MPI_FLOAT, rnbr, TAG_RNEIGHBOR, com); */
+    /* MPI_Recv (a_local.val, 1, MPI_FLOAT, lnbr, TAG_RNEIGHBOR, com, &status); */
+
+    /* asynchrone */
+    /* je ne comprend pas pourquoi le Waitall ne marche pas pour les receptions. J'ai donc fait deux wait */
+    MPI_Isend(a_local.val+1, 1, MPI_FLOAT, lnbr, TAG_LNEIGHBOR, com, &requestSend[0]);
+    MPI_Isend(a_local.val+lsize, 1, MPI_FLOAT, rnbr, TAG_RNEIGHBOR, com, &requestSend[1]);
+
 
     /* calcul de la nouvelle génération */
     compute (a_local, a_new, 1, lsize);
@@ -336,8 +342,18 @@ main (int argc, char *argv[])
     /* calcul de l'erreur locale */
     lerror = max_error (a_local, a_new, 1, lsize);
 
+    MPI_Waitall(2, requestSend, MPI_STATUSES_IGNORE);
+
+    MPI_Irecv(a_local.val+lsize+1, 1, MPI_FLOAT, rnbr, TAG_LNEIGHBOR, com, &requestReceive[0]);
+    MPI_Irecv(a_local.val, 1, MPI_FLOAT, lnbr, TAG_RNEIGHBOR, com, &requestReceive[1]);
+
+
+    MPI_Wait(&requestReceive[0], MPI_STATUSES_IGNORE);
+    MPI_Wait(&requestReceive[1], MPI_STATUSES_IGNORE);
+
     /* remplacement de génération */
     array_swap (&a_local, &a_new);
+
     
     /* calcul de l'erreur globale */
     MPI_Allreduce (&lerror, &gerror, 1, MPI_FLOAT, MPI_MAX, com);

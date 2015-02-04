@@ -1,0 +1,3 @@
+Waitall ne marche pas pour les isend (dans
+  /* boucle de calcul jusqu'à convergence */
+  do {
