@@ -18,7 +18,7 @@
   1. Utiliser des communications collectives
 OK   a. pour la diffusion de la taille du tableau.
 OK   b. pour la diffusion des valeurs du tableau.
-     c. pour le rassemblement des résulats.
+OK   c. pour le rassemblement des résulats.
 OK   d. pour le rassemblement de l'erreur.
   2. Recouvrir les communications entre voisins par du calcul.
      a. envoyer de manière asynchone les limites du domaine local (c'est les fontiere (les valeures que les voisins on tbesoin pou calculer).
@@ -345,18 +345,19 @@ main (int argc, char *argv[])
   } while (gerror > EPSILON) ;
   
   /* centralisation des tableaux par le processus PROC_NULL */
-  if (self == PROC_NULL) {
-    for (p=1 ; p<procs ; p++)
-      MPI_Recv (a_io.val + (p*lsize),
-		lsize, MPI_FLOAT,
-		p, TAG_COLLECT_VAL, com, &status);
-    /* diffusion de PROC_NULL a PROC_NULL : recopie locale du resultat */
-    memcpy(a_io.val, a_local.val+1, lsize * sizeof (float)); 
-  } else {
-    MPI_Send (a_local.val+1, lsize, MPI_FLOAT,
-	      PROC_NULL, TAG_COLLECT_VAL, com);
-  }
+  /* if (self == PROC_NULL) { */
+  /*   for (p=1 ; p<procs ; p++) */
+  /*     MPI_Recv (a_io.val + (p*lsize), */
+  /* 		lsize, MPI_FLOAT, */
+  /* 		p, TAG_COLLECT_VAL, com, &status); */
+  /*   /\* diffusion de PROC_NULL a PROC_NULL : recopie locale du resultat *\/ */
+  /*   memcpy(a_io.val, a_local.val+1, lsize * sizeof (float)); */
+  /* } else { */
+  /*   MPI_Send (a_local.val+1, lsize, MPI_FLOAT, */
+  /* 	      PROC_NULL, TAG_COLLECT_VAL, com); */
+  /* } */
 
+  MPI_Gather(a_local.val+1, lsize, MPI_FLOAT,a_io.val + (self*lsize), lsize, MPI_FLOAT, PROC_NULL, com);
   /* sauvegarde du resultat par le processus PROC_NULL */
   if (self == PROC_NULL) {
     array_write (a_io, fileout) ;
